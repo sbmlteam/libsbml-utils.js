@@ -1,0 +1,169 @@
+cmake_minimum_required(VERSION 3.15)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt")
+
+    file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" VersionString NEWLINE_CONSUME)
+    string(STRIP "${VersionString}" VersionString)
+    set(LIBSBMLJS_DOTTED_VERSION ${VersionString})
+    string(REPLACE "." ";" VersionString "${VersionString}" )
+    string(REPLACE "-" ";" VersionString "${VersionString}" )
+    list(LENGTH VersionString versionLength)
+    list(GET VersionString 0 LIBSBMLJS_VERSION_MAJOR )
+    list(GET VersionString 1 LIBSBMLJS_VERSION_MINOR )
+    list(GET VersionString 2 LIBSBMLJS_VERSION_PATCH )
+
+    if(${versionLength} GREATER 3)
+        list(GET VersionString 3 LIBSBMLJS_VERSION_RELEASE )
+    endif()
+
+endif()
+
+# version number needs to be calculated correctly
+MATH(EXPR LIBSBMLJS_VERSION_NUMERIC "${LIBSBMLJS_VERSION_MAJOR} * 10000 + ${LIBSBMLJS_VERSION_MINOR} * 100 + ${LIBSBMLJS_VERSION_PATCH}" )
+
+
+project(LIBSBMLjs LANGUAGES CXX VERSION ${LIBSBMLJS_DOTTED_VERSION})
+
+enable_testing()
+
+set(CMAKE_CXX_STANDARD 17)
+
+# Specify directory with dependencies
+set(LIBSBMLJS_DEPENDENCY_DIR "dependencies" CACHE PATH "Directory with dependencies")
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${LIBSBMLJS_DEPENDENCY_DIR}/share/LIBSBML/CMakeModules")
+
+find_package(LIBSBML REQUIRED)
+
+# Add library target
+if (EMSCRIPTEN)
+option(LIBSBMLJS_INCLUDE_EXAMPLE_FILES "Include example files in the build" OFF)
+option(LIBSBMLJS_SINGLE_FILE "Build single js (on) or js + wasm (if off)" OFF)
+set (LIBSBMLJS_ENVIRONMENT "node" CACHE STRING "Environment for which to build one of: web, node")
+
+set (EXPORTED_FUNCTIONS "ccall,cwrap")
+set (PRELOAD_FILE)
+set (DATA_FILE)
+if (LIBSBMLJS_INCLUDE_EXAMPLE_FILES)
+  set (EXPORTED_FUNCTIONS "${EXPORTED_FUNCTIONS},FS")
+  set (PRELOAD_FILE "--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/example_files@/")
+  set (DATA_FILE "${CMAKE_CURRENT_BINARY_DIR}/LIBSBMLjs.data") 
+endif ()
+
+#add_executable(LIBSBMLjs src/LIBSBMLjs.cpp src/LIBSBMLjs.h src/)
+#target_link_libraries(LIBSBMLjs PUBLIC embind)
+
+add_executable(sbml_validator src/sbml_validator.cpp src/)
+
+target_link_libraries(sbml_validator PUBLIC embind)
+set(CMAKE_EXECUTABLE_SUFFIX ".js")
+
+set(LIBSBMLJS_OPT_FLAGS "-Os -sNO_DISABLE_EXCEPTION_CATCHING -fexceptions")
+# set(LIBSBMLJS_OPT_FLAGS "-O3 -g -sASSERTIONS=2 -sNO_DISABLE_EXCEPTION_CATCHING -fexceptions")
+
+
+set (WASM_FILE)
+if (LIBSBMLJS_SINGLE_FILE)
+set (SINGLE_FILE "-sSINGLE_FILE=1 ")
+else()
+set (WASM_FILE ${CMAKE_CURRENT_BINARY_DIR}/sbml_validator.wasm)
+set (SINGLE_FILE "-sSINGLE_FILE=0 ")
+endif()
+
+set_target_properties(sbml_validator PROPERTIES COMPILE_FLAGS "${LIBSBMLJS_OPT_FLAGS}")
+set_target_properties(sbml_validator PROPERTIES LINK_FLAGS    "${LIBSBMLJS_OPT_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -sENVIRONMENT=${LIBSBMLJS_ENVIRONMENT} ${SINGLE_FILE} -sEXPORT_ES6=0 -sUSE_ES6_IMPORT_META=0 -s WASM=1 -s MODULARIZE -s 'EXPORT_NAME=createCpsModule' --no-entry ${PRELOAD_FILE} -sEXPORTED_RUNTIME_METHODS=${EXPORTED_FUNCTIONS}")
+
+install(
+  FILES 
+    ${CMAKE_CURRENT_BINARY_DIR}/sbml_validator.js
+    #${CMAKE_CURRENT_SOURCE_DIR}/js/LIBSBML.js
+    #${CMAKE_CURRENT_SOURCE_DIR}/js/LIBSBML.d.ts
+    ${DATA_FILE}
+    ${WASM_FILE}
+
+  DESTINATION ${CMAKE_INSTALL_PREFIX}
+)
+
+else()
+#add_library(LIBSBMLjs src/LIBSBMLjs.cpp src/LIBSBMLjs.h src/)
+endif()
+
+# Add include directory from dependencies
+target_include_directories(sbml_validator PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+# Link dependencies
+target_link_libraries(sbml_validator PUBLIC ${LIBSBML_LIBRARY})
+
+
+if (NOT EMSCRIPTEN)
+# compile a test executable
+Include(FetchContent)
+
+FetchContent_Declare(
+  Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        v3.4.0 # or a later release
+)
+
+FetchContent_MakeAvailable(Catch2)
+
+# These tests can use the Catch2-provided main
+add_executable(LIBSBMLjs_test test/LIBSBMLjs_test.cpp)
+target_include_directories(LIBSBMLjs_test PUBLIC ${LIBSBML_DEPENDENCY_DIR}/include)
+target_include_directories(LIBSBMLjs_test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(LIBSBMLjs_test PRIVATE Catch2::Catch2WithMain LIBSBMLjs)
+if (APPLE)
+  target_link_libraries(LIBSBMLjs_test PRIVATE "-framework CoreFoundation -framework Accelerate")
+endif()
+
+add_test(NAME LIBSBMLjs_test_run COMMAND LIBSBMLjs_test)
+set_tests_properties(LIBSBMLjs_test_run PROPERTIES 
+  ENVIRONMENT "srcdir=${CMAKE_CURRENT_SOURCE_DIR}/test"
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+endif()
+
+
+message(STATUS "
+----------------------------------------------------------------------
+LIBSBMLJS version ${LIBSBMLJS_DOTTED_VERSION}
+----------------------------------------------------------------------
+
+   More information and the latest version are available online at
+   https://LIBSBML.org
+
+   Please report problems using the issue tracker at
+   https://github.com/LIBSBML/LIBSBML.js/issues
+
+   To contact the developers directly, email LIBSBML-user-forum@googlegroups.com
+
+   Configured on host '${HOSTNAME}'
+     host type                       = ${CMAKE_SYSTEM_NAME}
+     host operating system           = ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_VERSION}
+     host CPU architecture           = ${CMAKE_SYSTEM_PROCESSOR}
+
+   General build flags:
+     CC                              = ${CMAKE_C_COMPILER}
+     CXX                             = ${CMAKE_CXX_COMPILER}
+     CPPFLAGS                        = ${BUILD_DEFINITIONS}
+     CFLAGS                          = ${CMAKE_C_FLAGS}
+     CXXFLAGS                        = ${CMAKE_CXX_FLAGS}
+     LDFLAGS                         = ${CMAKE_EXE_LINKER_FLAGS}
+
+   Dependencies directory            = ${LIBSBMLJS_DEPENDENCY_DIR}
+
+   LIBSBMLSE configuration:
+     Version                         = ${LibLIBSBMLSE_VERSION}
+     Libraries                       = ${LibLIBSBMLSE_LIBRARY}
+     Include directory               = ${LibLIBSBMLSE_INCLUDE_DIR}
+
+     LibSBML                         = ${LIBSBML_VERSION}
+     LibSEDML                        = ${LIBSEDML_VERSION}
+     LibCOMBINE                      = ${LIBCOMBINE_VERSION}
+
+   Other libSBML configuration settings:
+     Installation $prefix            = ${CMAKE_INSTALL_PREFIX}
+     
+")
