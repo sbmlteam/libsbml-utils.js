@@ -10,9 +10,14 @@ if [ ! -d "$LIBSBML_DIR" ]; then
 else
     echo "Updating libSBML repository..."
     pushd "$LIBSBML_DIR"
-    git pull origin master
+    git pull origin development
     popd
 fi
 
 echo "libSBML repository is up to date"
+
+# read version from ./libsbml/VERSION.txt
+LIBSBML_VERSION=$(cat "$LIBSBML_DIR/VERSION.txt")
+echo "libSBML version: $LIBSBML_VERSION"
+
 popd
