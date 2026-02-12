@@ -14,4 +14,11 @@ emcmake cmake -B $BUILD_DIR \
         -DCOPASIJS_INCLUDE_EXAMPLE_FILES=ON
 
 cmake --build $BUILD_DIR --config $BUILD_TYPE
+
+# if the build fails, exit with an error
+if [ $? -ne 0 ]; then
+    echo "Build failed. Aborting installation."
+    exit 1
+fi
+
 cmake --install $BUILD_DIR --config $BUILD_TYPE
