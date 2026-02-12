@@ -13,12 +13,74 @@
 using namespace emscripten;
 LIBSBML_CPP_NAMESPACE_USE
 
+std::string getSeverityString(unsigned int severity)
+{
+    switch (severity)
+    {
+        case LIBSBML_SEV_ERROR:
+            return "error";
+        case LIBSBML_SEV_WARNING:
+            return "warning";
+        case LIBSBML_SEV_INFO:
+            return "info";
+        default:
+            return "";
+    }
+}
+
 // Struct to store validation error info
 struct ValidationError
 {
+    ValidationError(const SBMLError *err)
+        : line(err->getLine())
+        , message(err->getMessage())
+        , severity(getSeverityString(err->getSeverity()))
+        , errorId(err->getErrorId())
+        //, level(err->getLevel())
+        //, version(err->getVersion())
+        , column(err->getColumn())
+        , category(err->getCategoryAsString())
+        , package(err->getPackage())
+        //, pkgVersion(err->getPgetPackageVersion())
+        {
+            std::replace(message.begin(), message.end(), '\n', ' '); // Normalize line endings
+            if (package.empty()) {
+                package = "core";
+            }
+        }
+
+    ValidationError(unsigned int line, const std::string &message, const std::string &severity)
+        : line(line), message(message), severity(severity)
+    {
+        std::replace(this->message.begin(), this->message.end(), '\n', ' '); // Normalize line endings
+    }
+
+    std::string toJsonString() const
+    {
+        return std::string("{ ") +
+                "\"line\": " + std::to_string(line) +
+                ", \"column\": " + std::to_string(column) +
+                ", \"message\": \"" + message + "\"" +
+                ", \"severity\": \"" + severity + "\""+
+                ", \"category\": \"" + category + "\"" +
+                ", \"errorId\": " + std::to_string(errorId) +
+                //", \"level\": " + std::to_string(level) +
+                //", \"version\": " + std::to_string(version) +
+                ", \"package\": \"" + package + "\"" +
+                //", \"pkgVersion\": " + std::to_string(pkgVersion) +
+                "}";
+    }
+
     unsigned int line;
     std::string message;
     std::string severity;
+    unsigned int errorId  = 0;
+    //unsigned int level;
+    //unsigned int version;
+    unsigned int column   = 0;
+    std::string category;
+    std::string package  = "core";
+    //unsigned int pkgVersion = 1;
 };
 
 std::string getErrorsAsJSON(const std::vector<ValidationError> &errors)
@@ -27,11 +89,7 @@ std::string getErrorsAsJSON(const std::vector<ValidationError> &errors)
     str << "[\n";
     for (size_t i = 0; i < errors.size(); ++i)
     {
-        std::string message = errors[i].message;
-        std::replace(message.begin(), message.end(), '\n', ' '); // Normalize line endings
-        str << "  { \"line\": " << errors[i].line
-            << ", \"message\": \"" << message << "\""
-            << ", \"severity\": \"" << errors[i].severity << "\" }";
+        str << "  " << errors[i].toJsonString();
         if (i < errors.size() - 1)
             str << ",";
         str << "\n";
@@ -183,24 +241,7 @@ std::string validateSBMLString(const std::string &sbmlContent, const std::string
         {
             for (unsigned int i = 0; i < document->getNumErrors(); ++i)
             {
-                const SBMLError *err = document->getError(i);
-                std::string severity;
-                switch (err->getSeverity())
-                {
-                case LIBSBML_SEV_ERROR:
-                    severity = "error";
-                    break;
-                case LIBSBML_SEV_FATAL:
-                    severity = "fatal";
-                    break;
-                case LIBSBML_SEV_WARNING:
-                    severity = "warning";
-                    break;
-                default:
-                    severity = "info";
-                    break;
-                }
-                errors.push_back({err->getLine(), err->getMessage(), severity});
+                errors.push_back(ValidationError(document->getError(i)));
             }
         }
 
@@ -210,25 +251,10 @@ std::string validateSBMLString(const std::string &sbmlContent, const std::string
             for (unsigned int i = 0; i < document->getNumErrors(); ++i)
             {
                 const SBMLError *err = document->getError(i);
-                if (err->getSeverity() == LIBSBML_SEV_WARNING || err->getSeverity() == LIBSBML_SEV_ERROR)
-                {
-                    std::string severity;
-                    switch (err->getSeverity())
-                    {
-                    case LIBSBML_SEV_ERROR:
-                        severity = "error";
-                        break;
-                    case LIBSBML_SEV_FATAL:
-                        severity = "fatal";
-                        break;
-                    case LIBSBML_SEV_WARNING:
-                        severity = "warning";
-                        break;
-                    default:
-                        severity = "info";
-                        break;
-                    }
-                    errors.push_back({err->getLine(), err->getMessage(), severity});
+                auto severityLevel = err->getSeverity();
+                if (severityLevel == LIBSBML_SEV_WARNING || severityLevel == LIBSBML_SEV_ERROR)
+                {                    
+                    errors.push_back(ValidationError(document->getError(i)));
                 }
             }
         }
