@@ -13,6 +13,17 @@
 using namespace emscripten;
 LIBSBML_CPP_NAMESPACE_USE
 
+// Replace all occurrences of a substring in-place
+static void replaceAll(std::string &str, const std::string &from, const std::string &to)
+{
+    if (from.empty()) return;
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // Move past the replacement
+    }
+}
+
 std::string getSeverityString(unsigned int severity)
 {
     switch (severity)
@@ -44,6 +55,12 @@ struct ValidationError
         //, pkgVersion(err->getPgetPackageVersion())
         {
             std::replace(message.begin(), message.end(), '\n', ' '); // Normalize line endings
+            // replace all quotes in the message with escaped quotes
+            replaceAll(message, "\"", "\\\""); // Replace double quotes with \"
+            // ensure we have no \\\" (double-escaped) sequences in the message
+            replaceAll(message, "\\\\\"", "\\\""); // Replace \\\" with \\"
+
+            // ensure we have a package name
             if (package.empty()) {
                 package = "core";
             }
