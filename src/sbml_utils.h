@@ -1,5 +1,5 @@
-#ifndef SBML_VALIDATOR_H
-#define SBML_VALIDATOR_H
+#ifndef SBML_UTILS_H
+#define SBML_UTILS_H
 
 #include <string>
 #include <vector>
@@ -32,4 +32,4 @@ struct ValidationError {
     std::string severity;
 };
 
-#endif
+#endif // SBML_UTILS_H

@@ -1,4 +1,4 @@
-var validator = require('./sbml_validator.js');
+var utils = require('./sbml_utils.js');
 var fs = require("fs");
 
 var validationOptions = {
@@ -13,7 +13,7 @@ var validationOptions = {
 };
 
 
-validator().then((Module) => {
+utils().then((Module) => {
 
     // instantiate validator
     var instance = Module;

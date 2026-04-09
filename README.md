@@ -1,5 +1,5 @@
-## libsbml JS Validator
-This is a small C++ project just exposing the libSBML validation API as JavaScript. It uses emscripten to compile the libsbml library and its dependencies, with just a couple of functions being exposed. 
+## libSBML JS Utils
+This is a C++ project exposes libSBML functionality to JavaScript. Starting with the validation API as well as the conversion API. It uses emscripten to compile the libsbml library and its dependencies, with just a couple of functions being exposed. 
 
 ### Building
 

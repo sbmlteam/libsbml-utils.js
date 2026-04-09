@@ -5,6 +5,7 @@
 #include <vector>
 #include <sbml/SBMLTypes.h>
 #include <algorithm> // For std::replace
+
 #include <emscripten.h>
 #include <emscripten/bind.h>
 

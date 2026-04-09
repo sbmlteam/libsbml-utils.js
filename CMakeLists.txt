@@ -54,9 +54,9 @@ endif ()
 #add_executable(LIBSBMLjs src/LIBSBMLjs.cpp src/LIBSBMLjs.h src/)
 #target_link_libraries(LIBSBMLjs PUBLIC embind)
 
-add_executable(sbml_validator src/sbml_validator.cpp src/)
+add_executable(sbml_utils src/sbml_utils.cpp src/)
 
-target_link_libraries(sbml_validator PUBLIC embind)
+target_link_libraries(sbml_utils PUBLIC embind)
 set(CMAKE_EXECUTABLE_SUFFIX ".js")
 
 set(LIBSBMLJS_OPT_FLAGS "-Os -sNO_DISABLE_EXCEPTION_CATCHING -fexceptions")
@@ -67,16 +67,16 @@ set (WASM_FILE)
 if (LIBSBMLJS_SINGLE_FILE)
 set (SINGLE_FILE "-sSINGLE_FILE=1 ")
 else()
-set (WASM_FILE ${CMAKE_CURRENT_BINARY_DIR}/sbml_validator.wasm)
+set (WASM_FILE ${CMAKE_CURRENT_BINARY_DIR}/sbml_utils.wasm)
 set (SINGLE_FILE "-sSINGLE_FILE=0 ")
 endif()
 
-set_target_properties(sbml_validator PROPERTIES COMPILE_FLAGS "${LIBSBMLJS_OPT_FLAGS}")
-set_target_properties(sbml_validator PROPERTIES LINK_FLAGS    "${LIBSBMLJS_OPT_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -sENVIRONMENT=${LIBSBMLJS_ENVIRONMENT} ${SINGLE_FILE} -sEXPORT_ES6=0  -s WASM=1 -s MODULARIZE -s 'EXPORT_NAME=createCpsModule' --no-entry ${PRELOAD_FILE} -sEXPORTED_RUNTIME_METHODS=${EXPORTED_FUNCTIONS}")
+set_target_properties(sbml_utils PROPERTIES COMPILE_FLAGS "${LIBSBMLJS_OPT_FLAGS}")
+set_target_properties(sbml_utils PROPERTIES LINK_FLAGS    "${LIBSBMLJS_OPT_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -sENVIRONMENT=${LIBSBMLJS_ENVIRONMENT} ${SINGLE_FILE} -sEXPORT_ES6=0  -s WASM=1 -s MODULARIZE -s 'EXPORT_NAME=createCpsModule' --no-entry ${PRELOAD_FILE} -sEXPORTED_RUNTIME_METHODS=${EXPORTED_FUNCTIONS}")
 
 install(
   FILES 
-    ${CMAKE_CURRENT_BINARY_DIR}/sbml_validator.js
+    ${CMAKE_CURRENT_BINARY_DIR}/sbml_utils.js
     #${CMAKE_CURRENT_SOURCE_DIR}/js/LIBSBML.js
     #${CMAKE_CURRENT_SOURCE_DIR}/js/LIBSBML.d.ts
     ${DATA_FILE}
@@ -90,10 +90,10 @@ else()
 endif()
 
 # Add include directory from dependencies
-target_include_directories(sbml_validator PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(sbml_utils PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Link dependencies
-target_link_libraries(sbml_validator PUBLIC ${LIBSBML_LIBRARY})
+target_link_libraries(sbml_utils PUBLIC ${LIBSBML_LIBRARY})
 
 
 if (NOT EMSCRIPTEN)
@@ -132,12 +132,10 @@ LIBSBMLJS version ${LIBSBMLJS_DOTTED_VERSION}
 ----------------------------------------------------------------------
 
    More information and the latest version are available online at
-   https://LIBSBML.org
+   https://sbml.org
 
    Please report problems using the issue tracker at
-   https://github.com/LIBSBML/LIBSBML.js/issues
-
-   To contact the developers directly, email LIBSBML-user-forum@googlegroups.com
+   https://github.com/fbergmann/libsbml-utils.js/issues
 
    Configured on host '${HOSTNAME}'
      host type                       = ${CMAKE_SYSTEM_NAME}
@@ -154,14 +152,7 @@ LIBSBMLJS version ${LIBSBMLJS_DOTTED_VERSION}
 
    Dependencies directory            = ${LIBSBMLJS_DEPENDENCY_DIR}
 
-   LIBSBMLSE configuration:
-     Version                         = ${LibLIBSBMLSE_VERSION}
-     Libraries                       = ${LibLIBSBMLSE_LIBRARY}
-     Include directory               = ${LibLIBSBMLSE_INCLUDE_DIR}
-
      LibSBML                         = ${LIBSBML_VERSION}
-     LibSEDML                        = ${LIBSEDML_VERSION}
-     LibCOMBINE                      = ${LIBCOMBINE_VERSION}
 
    Other libSBML configuration settings:
      Installation $prefix            = ${CMAKE_INSTALL_PREFIX}
