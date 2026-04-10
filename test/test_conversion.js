@@ -41,7 +41,7 @@ utils().then((Module) => {
     console.log(instance.convertSBMLString(data, JSON.stringify({
         "setLevelAndVersion":"true",
         "strict":"false",
-        "targetNamespacesx":{"level":1,"version":2}
+        "targetNamespaces":{"level":1,"version":2}
     })));
 
     console.log(instance.getConversionErrors());
