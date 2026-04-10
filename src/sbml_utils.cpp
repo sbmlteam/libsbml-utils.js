@@ -11,20 +11,23 @@
 #include <sbml/conversion/ConversionProperties.h>
 #include <sbml/conversion/ConversionOption.h>
 
+#include <sbml_utils.h>
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-#include <json.hpp>
-
 using namespace emscripten;
 LIBSBML_CPP_NAMESPACE_USE
 
+namespace sbml_utils
+{
+
 // map of converters
-std::map<std::string, SBMLConverter *> converters;
+static std::map<std::string, SBMLConverter *> converters;
 
+static std::vector<ValidationError> conversionErrors;
 
-void freeConvertersMap()
+static void freeConvertersMap()
 {
     for (auto &converter : converters)
     {
@@ -33,10 +36,10 @@ void freeConvertersMap()
     converters.clear();
 }
 
-void initConvertersMap()
+static void initConvertersMap()
 {
     freeConvertersMap();
-    auto& instance = SBMLConverterRegistry::getInstance();
+    auto &instance = SBMLConverterRegistry::getInstance();
     for (int i = 0; i < instance.getNumConverters(); i++)
     {
         auto *converter = instance.getConverterByIndex(i);
@@ -44,95 +47,78 @@ void initConvertersMap()
     }
 }
 
-
 // Replace all occurrences of a substring in-place
 static void replaceAll(std::string &str, const std::string &from, const std::string &to)
 {
-    if (from.empty()) return;
+    if (from.empty())
+        return;
     size_t start_pos = 0;
-    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos)
+    {
         str.replace(start_pos, from.length(), to);
         start_pos += to.length(); // Move past the replacement
     }
 }
 
-std::string getSeverityString(unsigned int severity)
+static std::string getSeverityString(unsigned int severity)
 {
     switch (severity)
     {
-        case LIBSBML_SEV_ERROR:
-            return "error";
-        case LIBSBML_SEV_WARNING:
-            return "warning";
-        case LIBSBML_SEV_INFO:
-            return "info";
-        default:
-            return "";
+    case LIBSBML_SEV_ERROR:
+        return "error";
+    case LIBSBML_SEV_WARNING:
+        return "warning";
+    case LIBSBML_SEV_INFO:
+        return "info";
+    default:
+        return "";
     }
 }
 
-// Struct to store validation error info
-struct ValidationError
+ValidationError::ValidationError(const LIBSBML_CPP_NAMESPACE_QUALIFIER SBMLError *err)
+    : line(err->getLine()), message(err->getMessage()), severity(getSeverityString(err->getSeverity())), errorId(err->getErrorId())
+      //, level(err->getLevel())
+      //, version(err->getVersion())
+      ,
+      column(err->getColumn()), category(err->getCategoryAsString()), package(err->getPackage())
+//, pkgVersion(err->getPgetPackageVersion())
 {
-    ValidationError(const SBMLError *err)
-        : line(err->getLine())
-        , message(err->getMessage())
-        , severity(getSeverityString(err->getSeverity()))
-        , errorId(err->getErrorId())
-        //, level(err->getLevel())
-        //, version(err->getVersion())
-        , column(err->getColumn())
-        , category(err->getCategoryAsString())
-        , package(err->getPackage())
-        //, pkgVersion(err->getPgetPackageVersion())
-        {
-            std::replace(message.begin(), message.end(), '\n', ' '); // Normalize line endings
-            // replace all quotes in the message with escaped quotes
-            replaceAll(message, "\"", "\\\""); // Replace double quotes with \"
-            // ensure we have no \\\" (double-escaped) sequences in the message
-            replaceAll(message, "\\\\\"", "\\\""); // Replace \\\" with \\"
+    std::replace(message.begin(), message.end(), '\n', ' '); // Normalize line endings
+    // replace all quotes in the message with escaped quotes
+    replaceAll(message, "\"", "\\\""); // Replace double quotes with \"
+    // ensure we have no \\\" (double-escaped) sequences in the message
+    replaceAll(message, "\\\\\"", "\\\""); // Replace \\\" with \\"
 
-            // ensure we have a package name
-            if (package.empty()) {
-                package = "core";
-            }
-        }
-
-    ValidationError(unsigned int line, const std::string &message, const std::string &severity)
-        : line(line), message(message), severity(severity)
+    // ensure we have a package name
+    if (package.empty())
     {
-        std::replace(this->message.begin(), this->message.end(), '\n', ' '); // Normalize line endings
+        package = "core";
     }
+}
 
-    std::string toJsonString() const
-    {
-        return std::string("{ ") +
-                "\"line\": " + std::to_string(line) +
-                ", \"column\": " + std::to_string(column) +
-                ", \"message\": \"" + message + "\"" +
-                ", \"severity\": \"" + severity + "\""+
-                ", \"category\": \"" + category + "\"" +
-                ", \"errorId\": " + std::to_string(errorId) +
-                //", \"level\": " + std::to_string(level) +
-                //", \"version\": " + std::to_string(version) +
-                ", \"package\": \"" + package + "\"" +
-                //", \"pkgVersion\": " + std::to_string(pkgVersion) +
-                "}";
-    }
+ValidationError::ValidationError(unsigned int line, const std::string &message, const std::string &severity)
+    : line(line), message(message), severity(severity)
+{
+    std::replace(this->message.begin(), this->message.end(), '\n', ' '); // Normalize line endings
+}
 
-    unsigned int line;
-    std::string message;
-    std::string severity;
-    unsigned int errorId  = 0;
-    //unsigned int level;
-    //unsigned int version;
-    unsigned int column   = 0;
-    std::string category;
-    std::string package  = "core";
-    //unsigned int pkgVersion = 1;
-};
+std::string ValidationError::toJsonString() const
+{
+    return std::string("{ ") +
+           "\"line\": " + std::to_string(line) +
+           ", \"column\": " + std::to_string(column) +
+           ", \"message\": \"" + message + "\"" +
+           ", \"severity\": \"" + severity + "\"" +
+           ", \"category\": \"" + category + "\"" +
+           ", \"errorId\": " + std::to_string(errorId) +
+           //", \"level\": " + std::to_string(level) +
+           //", \"version\": " + std::to_string(version) +
+           ", \"package\": \"" + package + "\"" +
+           //", \"pkgVersion\": " + std::to_string(pkgVersion) +
+           "}";
+}
 
-std::string getErrorsAsJSON(const std::vector<ValidationError> &errors)
+static std::string getErrorsAsJSON(const std::vector<ValidationError> &errors)
 {
     std::stringstream str;
     str << "[\n";
@@ -148,13 +134,13 @@ std::string getErrorsAsJSON(const std::vector<ValidationError> &errors)
 }
 
 // Converts validation errors to JSON
-void printErrorsAsJSON(const std::vector<ValidationError> &errors)
+static void printErrorsAsJSON(const std::vector<ValidationError> &errors)
 {
     std::cout << getErrorsAsJSON(errors);
 }
 
 // Reads an entire file into a string
-std::string readFileToString(const std::string &filePath)
+static std::string readFileToString(const std::string &filePath)
 {
     std::ifstream t(filePath);
     std::stringstream buffer;
@@ -162,7 +148,7 @@ std::string readFileToString(const std::string &filePath)
     return buffer.str();
 }
 
-void applyValidationOptions(SBMLDocument *document, const std::string &validationOptions)
+static void applyValidationOptions(SBMLDocument *document, const std::string &validationOptions)
 {
     if (validationOptions.empty())
     {
@@ -272,7 +258,20 @@ void applyValidationOptions(SBMLDocument *document, const std::string &validatio
     document->setApplicableValidators(applicableValidators);
 }
 
-std::string validateSBMLString(const std::string &sbmlContent, const std::string &validationOptions = "{}")
+static void addErrorsToVector(std::vector<ValidationError> &errors, const SBMLDocument *document, unsigned int severityFilter)
+{
+    for (unsigned int i = 0; i < document->getNumErrors(); ++i)
+    {
+        const SBMLError *err = document->getError(i);
+        auto severityLevel = err->getSeverity();
+        if (severityLevel < severityFilter)
+            continue;
+
+        errors.push_back(ValidationError(err));
+    }
+}
+
+static std::string validateSBMLString(const std::string &sbmlContent, const std::string &validationOptions)
 {
 
     SBMLDocument *document = readSBMLFromString(sbmlContent.c_str());
@@ -288,24 +287,13 @@ std::string validateSBMLString(const std::string &sbmlContent, const std::string
     {
         if (document->getNumErrors() > 0)
         {
-            for (unsigned int i = 0; i < document->getNumErrors(); ++i)
-            {
-                errors.push_back(ValidationError(document->getError(i)));
-            }
+            addErrorsToVector(errors, document);
         }
 
         unsigned int consistencyErrors = document->checkConsistency();
         if (consistencyErrors > 0)
         {
-            for (unsigned int i = 0; i < document->getNumErrors(); ++i)
-            {
-                const SBMLError *err = document->getError(i);
-                auto severityLevel = err->getSeverity();
-                if (severityLevel == LIBSBML_SEV_WARNING || severityLevel == LIBSBML_SEV_ERROR)
-                {                    
-                    errors.push_back(ValidationError(document->getError(i)));
-                }
-            }
+            addErrorsToVector(errors, document, LIBSBML_SEV_WARNING);
         }
     }
 
@@ -315,19 +303,19 @@ std::string validateSBMLString(const std::string &sbmlContent, const std::string
     return getErrorsAsJSON(errors);
 }
 
-std::string getVersionString()
+static std::string getVersionString()
 {
     return getLibSBMLDottedVersion();
 }
 
-std::vector< std::string > getAvailableConverters()
+static std::vector<std::string> getAvailableConverters()
 {
     if (converters.empty())
     {
         initConvertersMap();
     }
 
-    std::vector< std::string > converterNames;
+    std::vector<std::string> converterNames;
     for (auto &converter : converters)
     {
         converterNames.push_back(converter.first);
@@ -335,58 +323,56 @@ std::vector< std::string > getAvailableConverters()
     return converterNames;
 }
 
-nlohmann::json optionToObject(const ConversionOption *option)
+static nlohmann::json optionToObject(const ConversionOption *option)
 {
     auto optionObject = nlohmann::json::object();
     optionObject["key"] = option->getKey();
     optionObject["value"] = option->getValue();
     optionObject["description"] = option->getDescription();
     switch (option->getType())
-        {
-            case ConversionOptionType_t::CNV_TYPE_BOOL:
-                optionObject["type"] = "boolean";
-                break;
-            case ConversionOptionType_t::CNV_TYPE_DOUBLE:
-                optionObject["type"] = "number";
-                break;
-            case ConversionOptionType_t::CNV_TYPE_INT:
-                optionObject["type"] = "integer";
-                break;
-            case ConversionOptionType_t::CNV_TYPE_SINGLE:
-                optionObject["type"] = "number";
-                break;
-            case ConversionOptionType_t::CNV_TYPE_STRING:
-                optionObject["type"] = "string";
-                break;
-        }
+    {
+    case ConversionOptionType_t::CNV_TYPE_BOOL:
+        optionObject["type"] = "boolean";
+        break;
+    case ConversionOptionType_t::CNV_TYPE_DOUBLE:
+        optionObject["type"] = "number";
+        break;
+    case ConversionOptionType_t::CNV_TYPE_INT:
+        optionObject["type"] = "integer";
+        break;
+    case ConversionOptionType_t::CNV_TYPE_SINGLE:
+        optionObject["type"] = "number";
+        break;
+    case ConversionOptionType_t::CNV_TYPE_STRING:
+        optionObject["type"] = "string";
+        break;
+    }
     return optionObject;
 }
 
-void fillConverterOptions(const std::string &converterName, nlohmann::json &options)
+static void fillConverterOptions(const std::string &converterName, nlohmann::json &options)
 {
     if (converters.empty())
     {
         initConvertersMap();
     }
-    
+
     auto *converter = converters[converterName];
     if (!converter)
     {
         return;
     }
 
-    const auto& props = converter->getDefaultProperties();
+    const auto &props = converter->getDefaultProperties();
 
     if (props.getNumOptions() == 0)
     {
         return;
     }
 
-
-    // extract main option 
+    // extract main option
     options["main"] = optionToObject(props.getOption(0));
-    
-    
+
     // add target namespaces if needed
     auto *targetNamespaces = props.getTargetNamespaces();
 
@@ -396,31 +382,29 @@ void fillConverterOptions(const std::string &converterName, nlohmann::json &opti
         options["targetNamespaces"]["version"] = targetNamespaces->getVersion();
     }
 
-
     // remaining options
     auto optionsArray = nlohmann::json::array();
 
     for (int i = 1; i < props.getNumOptions(); i++)
     {
-        auto* option = props.getOption(i);
-        if (!option) 
+        auto *option = props.getOption(i);
+        if (!option)
             continue;
-        
+
         optionsArray.push_back(optionToObject(option));
     }
 
     options["options"] = optionsArray;
-
 }
 
-std::string getConverterOptions(const std::string &converterName)
+static std::string getConverterOptions(const std::string &converterName)
 {
     nlohmann::json options;
     fillConverterOptions(converterName, options);
     return options.dump();
 }
 
-std::string getAllConvertersOptions()
+static std::string getAllConvertersOptions()
 {
     nlohmann::json options;
     for (auto &converter : converters)
@@ -431,45 +415,87 @@ std::string getAllConvertersOptions()
     return options.dump();
 }
 
-void fillConversionProperties(ConversionProperties &properties, const nlohmann::json &optionsObject)
+static void fillConversionProperties(ConversionProperties &properties, const nlohmann::json &optionsObject)
 {
-    for (auto &option : optionsObject["options"])
+    try
     {
-        properties.addOption(option["key"], option["value"].get<std::string>());
-    }
 
-    if (optionsObject.find("targetNamespaces") != optionsObject.end())
+        // iterate over the options object (values alone have no .key(); use .items())
+        for (auto &option : optionsObject.items())
+        {
+            if (option.key() == "options")
+            {
+                for (auto &_option : option.value())
+                {
+                    properties.addOption(_option["key"], _option["value"].get<std::string>());
+                }
+            }
+            else if (option.key() == "targetNamespaces")
+            {
+                const auto &tn = option.value();
+                auto ns = SBMLNamespaces(tn["level"].get<int>(), tn["version"].get<int>());
+                properties.setTargetNamespaces(&ns);
+            }
+            else
+            {
+                // assume basic option
+                properties.addOption(option.key(), option.value().get<std::string>());
+            }
+        }
+        
+    }
+    catch (const std::exception &e)
     {
-        auto ns = SBMLNamespaces(optionsObject["targetNamespaces"]["level"].get<int>(), optionsObject["targetNamespaces"]["version"].get<int>());
-        properties.setTargetNamespaces(&ns);
+        conversionErrors.push_back({0, "Invalid conversion options: " + std::string(e.what()), "fatal"});
     }
 }
 
-std::string convertSBMLString(const std::string &sbmlContent, const std::string &options)
+static std::string convertSBMLString(const std::string &sbmlContent, const std::string &options)
 {
-    nlohmann::json optionsObject = nlohmann::json::parse(options);
+    conversionErrors.clear();
+
+    nlohmann::json optionsObject = nlohmann::json::parse(options, nullptr, false);
+    SBMLDocument *document = readSBMLFromString(sbmlContent.c_str());
+    document->getErrorLog()->clearLog();
+
     ConversionProperties properties;
     fillConversionProperties(properties, optionsObject);
-    SBMLDocument *document = readSBMLFromString(sbmlContent.c_str());
-    document->convert(properties);    
-    char* sbmlString = document->toSBML();
+
+    if (document->convert(properties) != LIBSBML_OPERATION_SUCCESS)
+    {
+        addErrorsToVector(conversionErrors, document);
+
+        if (conversionErrors.empty())
+        {
+            conversionErrors.push_back({0, "Conversion failed.", "fatal"});
+        }
+    }
+
+    char *sbmlString = document->toSBML();
     std::string sbmlStringStr(sbmlString);
     free(sbmlString);
     return sbmlStringStr;
-
 }
+
+static std::string getConversionErrors()
+{
+    return getErrorsAsJSON(conversionErrors);
+}
+
+} // namespace sbml_utils
 
 EMSCRIPTEN_BINDINGS(sbml_validator)
 {
-    initConvertersMap();
+    sbml_utils::initConvertersMap();
     emscripten::register_vector<std::string>("StringVector");
-    emscripten::function("validateSBMLString", &validateSBMLString);
-    emscripten::function("getLibSBMLVersion", &getVersionString);
-    emscripten::function("getAvailableConverters", &getAvailableConverters);
-    emscripten::function("getConverterOptions", &getConverterOptions);
-    emscripten::function("getAllConvertersOptions", &getAllConvertersOptions);
-    emscripten::function("convertSBMLString", &convertSBMLString);
-    emscripten::function("freeConvertersMap", &freeConvertersMap);
+    emscripten::function("validateSBMLString", &sbml_utils::validateSBMLString);
+    emscripten::function("getLibSBMLVersion", &sbml_utils::getVersionString);
+    emscripten::function("getAvailableConverters", &sbml_utils::getAvailableConverters);
+    emscripten::function("getConverterOptions", &sbml_utils::getConverterOptions);
+    emscripten::function("getAllConvertersOptions", &sbml_utils::getAllConvertersOptions);
+    emscripten::function("convertSBMLString", &sbml_utils::convertSBMLString);
+    emscripten::function("getConversionErrors", &sbml_utils::getConversionErrors);
+    emscripten::function("freeConvertersMap", &sbml_utils::freeConvertersMap);
 }
 
 int main(int argc, char *argv[])
@@ -480,8 +506,8 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::string sbmlContent = readFileToString(argv[1]);
-    std::string errors = validateSBMLString(sbmlContent);
+    std::string sbmlContent = sbml_utils::readFileToString(argv[1]);
+    std::string errors = sbml_utils::validateSBMLString(sbmlContent);
     std::cout << errors;
 
     return 0;
