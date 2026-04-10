@@ -6,14 +6,14 @@ This is a C++ project exposes libSBML functionality to JavaScript. Starting with
 Its all encapsulated in scripts
 
 ```bash
-./dev/git-dependencies.sh. # clones updates the dependencies
-./dev/git-libsbml.sh.      # clones / updates libsbml 
+./dev/git-dependencies.sh  # clones updates the dependencies
+./dev/git-libsbml.sh       # clones / updates libsbml 
 ```
 
 for building the node.js version
 
 ```bash
-./dev/em-dependencies.sh.   # builds the dependencies if not done
+./dev/em-dependencies.sh    # builds the dependencies if not done
 ./dev/em-build.sh           # build the code from ./src/
 ./dev/em-test.sh            # runs the test_node after copying to install dir
 ```
