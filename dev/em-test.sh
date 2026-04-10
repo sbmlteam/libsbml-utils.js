@@ -17,6 +17,8 @@ cp test/* $INSTALL_PREFIX
 
 # run tests
 cd $INSTALL_PREFIX
-node test_node.js dimerization-invalid.xml
+node test_validation.js dimerization-invalid.xml
+
+node test_conversion.js dimerization.xml
 
 ls -l .
