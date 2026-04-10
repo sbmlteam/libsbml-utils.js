@@ -38,18 +38,12 @@ find_package(LIBSBML REQUIRED)
 
 # Add library target
 if (EMSCRIPTEN)
-option(LIBSBMLJS_INCLUDE_EXAMPLE_FILES "Include example files in the build" OFF)
 option(LIBSBMLJS_SINGLE_FILE "Build single js (on) or js + wasm (if off)" OFF)
 set (LIBSBMLJS_ENVIRONMENT "node" CACHE STRING "Environment for which to build one of: web, node")
 
 set (EXPORTED_FUNCTIONS "ccall,cwrap")
 set (PRELOAD_FILE)
 set (DATA_FILE)
-if (LIBSBMLJS_INCLUDE_EXAMPLE_FILES)
-  set (EXPORTED_FUNCTIONS "${EXPORTED_FUNCTIONS},FS")
-  set (PRELOAD_FILE "--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/example_files@/")
-  set (DATA_FILE "${CMAKE_CURRENT_BINARY_DIR}/LIBSBMLjs.data") 
-endif ()
 
 #add_executable(LIBSBMLjs src/LIBSBMLjs.cpp src/LIBSBMLjs.h src/)
 #target_link_libraries(LIBSBMLjs PUBLIC embind)
