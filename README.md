@@ -129,3 +129,19 @@ node test_conversion.js dimerization.xml
 
 prints several conversions to different SBML Levels and Versions. As well
 as the list of conversion errors. 
+
+## Acknowledgements
+
+This project has been possible thanks to [LiBiS](https://libis.bioquant.uni-heidelberg.de), the Baden-Württemberg Institute for Bioinformatics Infrastructure:
+
+![LiBiS Logo](./docs/_static/libis-logo.svg)
+
+
+and to the BMBF funded [de.NBI](https://www.denbi.de) initiative (031L0104A, W-de.NBI-016)):
+
+![de.NBI logo](./docs/_static/deNBI_logo.jpg)
+
+
+## License
+
+BSD 2-Clause License see [LICENSE](./LICENSE)
