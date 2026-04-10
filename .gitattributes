@@ -1,0 +1,2 @@
+# POSIX shell scripts must keep LF line endings (shebangs, Unix tooling)
+dev/*.sh text eol=lf
