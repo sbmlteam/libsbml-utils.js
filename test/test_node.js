@@ -27,4 +27,34 @@ utils().then((Module) => {
     // print validation errors
     console.log(instance.validateSBMLString(data, JSON.stringify(validationOptions)));
 
+    // print available converters
+    var converters = instance.getAvailableConverters();
+    console.log("num available converters: ", converters.size());
+    for (var i = 0; i < converters.size(); i++) {
+        console.log(converters.get(i));
+        console.log(instance.getConverterOptions(converters.get(i)));
+        console.log("--------------------------------");
+    }
+
+    // get all options at once
+    console.log(instance.getAllConvertersOptions());
+
+    // now convert the model to SBML Level 3 Version 2
+    console.log(instance.convertSBMLString(data, JSON.stringify({
+        "options":[
+            {"key":"setLevelAndVersion","value":"true"},
+            {"key":"strict","value":"true"}
+        ],
+        "targetNamespaces":{"level":3,"version":2}
+    })));
+
+    // and l2v4
+    console.log(instance.convertSBMLString(data, JSON.stringify({
+        "options":[
+            {"key":"setLevelAndVersion","value":"true"},
+            {"key":"strict","value":"true"}
+        ],
+        "targetNamespaces":{"level":2,"version":4}
+    })));
+    
 });

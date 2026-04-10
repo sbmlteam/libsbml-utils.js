@@ -32,4 +32,19 @@ struct ValidationError {
     std::string severity;
 };
 
+/**
+ * @brief Get the LibSBML Version string
+ * 
+ * @return The version string of the libSBML library.
+ */
+std::string getLibSBMLVersion();
+
+
+/**
+ * @brief Get the available converter names
+ * 
+ * @return A vector of strings containing the available converters.
+ */
+std::vector< std::string > getAvailableConverters();
+
 #endif // SBML_UTILS_H
