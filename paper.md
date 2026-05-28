@@ -8,10 +8,15 @@ authors:
   - name: Frank T. Bergmann
     orcid: 0000-0001-5553-4702
     affiliation: 1
+  - name: Sarah M. Keating
+    orcid: 0000-0002-3356-3542
+    affiliation: 2
 
 affiliations:
  - name: BioQUANT/COS, Heidelberg University, Heidelberg, Germany
    index: 1
+ - name: University College London, London, GB
+   index: 2
 date: 28 May 2026
 bibliography: paper.bib
 
