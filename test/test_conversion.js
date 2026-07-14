@@ -12,6 +12,14 @@ utils().then((Module) => {
     // load a local file using the filesystem 
     var data = fs.readFileSync(process.argv[2], 'utf8');
 
+    // either get individual converters
+    var converters = instance.getAvailableConverters();
+    for (var i = 0; i < converters.size(); i++)
+    {
+        console.log(converters.get(i));
+        // and their options
+        console.log(instance.getConverterOptions(converters.get(i)));
+    }
     // get all options at once
     console.log(instance.getAllConvertersOptions());
 
