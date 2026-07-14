@@ -406,6 +406,10 @@ static std::string getConverterOptions(const std::string &converterName)
 
 static std::string getAllConvertersOptions()
 {
+    if (converters.empty())
+    {
+        initConvertersMap();
+    }
     nlohmann::json options;
     for (auto &converter : converters)
     {
