@@ -371,7 +371,12 @@ static void fillConverterOptions(const std::string &converterName, nlohmann::jso
     }
 
     // extract main option
-    options["main"] = optionToObject(props.getOption(0));
+    auto *mainOption = props.getOption(converter->getMainOption());
+    if (mainOption)
+    {
+        options["main"] = optionToObject(mainOption);
+    }
+    
 
     // add target namespaces if needed
     auto *targetNamespaces = props.getTargetNamespaces();
@@ -385,10 +390,11 @@ static void fillConverterOptions(const std::string &converterName, nlohmann::jso
     // remaining options
     auto optionsArray = nlohmann::json::array();
 
-    for (int i = 1; i < props.getNumOptions(); i++)
+    for (int i = 0; i < props.getNumOptions(); i++)
     {
         auto *option = props.getOption(i);
-        if (!option)
+        // leave main options out from the list
+        if (!option || option->getKey() == converter->getMainOption())
             continue;
 
         optionsArray.push_back(optionToObject(option));

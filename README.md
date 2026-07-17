@@ -66,11 +66,7 @@ The following JavaScript methods are available:
 
 ```javascript
     {
-        "options":[
-            {"key":"setLevelAndVersion","value":"true"},
-            {"key":"strict","value":"true"}
-        ],
-        "targetNamespaces":{"level":3,"version":2}
+        {"main":{"description":"Convert the model to a given Level and Version of SBML","key":"setLevelAndVersion","type":"boolean","value":"true"},"options":[{"description":"Whether default units should be added when converting to L3","key":"addDefaultUnits","type":"boolean","value":"true"},{"description":"Whether validity should be strictly preserved","key":"strict","type":"boolean","value":"true"}],"targetNamespaces":{"level":3,"version":2}}
     }
 ```
 
@@ -94,12 +90,12 @@ will be passed along:
   Frees memory allocated for the internal converter registry. Should be called
   to clear the static map of converters whenever you are done with them.
 
-### Example Validation
+### Example Convertion
 
 Running
 
 ```bash
-node test_validation.js dimerization-invalid.xml
+node test_convertion.js dimerization-invalid.xml
 ```
 
 produces a json list like:
@@ -159,55 +155,372 @@ which produces a complete list of all converters and their options:
 
 ```json
 {
-    "Layout Converter L2 <=> L3": {
-        "main": {
-            "description": "convert the layout to the given namespaces",
-            "key": "convert layout",
-            "type": "boolean",
-            "value": "true"
-        },
-        "options": []
+  "Layout Converter L2 <=> L3": {
+    "main": {
+      "description": "convert the layout to the given namespaces",
+      "key": "convert layout",
+      "type": "boolean",
+      "value": "true"
     },
-    "SBML COBRA to FBC Converter": {
-        "main": {
-            "description": "checks level/version compatibility",
-            "key": "checkCompatibility",
-            "type": "boolean",
-            "value": "false"
-        },
-        "options": [
-            {
-                "description": "convert cobra sbml to fbc",
-                "key": "convert cobra",
-                "type": "boolean",
-                "value": "true"
-            },
-            {
-                "description": "removes unit definitions",
-                "key": "removeUnits",
-                "type": "boolean",
-                "value": "false"
-            }
-        ]
+    "options": []
+  },
+  "SBML COBRA to FBC Converter": {
+    "main": {
+      "description": "convert cobra sbml to fbc",
+      "key": "convert cobra",
+      "type": "boolean",
+      "value": "true"
     },
-    "SBML Comp Flattening Converter": {
-        "main": {
-            "description": "specify whether to abort if any unflattenable packages are encountered",
-            "key": "abortIfUnflattenable",
-            "type": "string",
-            "value": "requiredOnly"
-        },
-        "options": [
-            {
-                "description": "the base directory in which to search for external references",
-                "key": "basePath",
-                "type": "string",
-                "value": "."
-            }
-        ]
+    "options": [
+      {
+        "description": "checks level/version compatibility",
+        "key": "checkCompatibility",
+        "type": "boolean",
+        "value": "false"
+      },
+      {
+        "description": "removes unit definitions",
+        "key": "removeUnits",
+        "type": "boolean",
+        "value": "false"
+      }
+    ]
+  },
+  "SBML Comp Flattening Converter": {
+    "main": {
+      "description": "flatten comp",
+      "key": "flatten comp",
+      "type": "boolean",
+      "value": "true"
     },
-    ...
+    "options": [
+      {
+        "description": "specify whether to abort if any unflattenable packages are encountered",
+        "key": "abortIfUnflattenable",
+        "type": "string",
+        "value": "requiredOnly"
+      },
+      {
+        "description": "the base directory in which to search for external references",
+        "key": "basePath",
+        "type": "string",
+        "value": "."
+      },
+      {
+        "description": "any packages that cannot be flattened should be stripped (note: this option replaced by 'stripUnflattenablePackages').",
+        "key": "ignorePackages",
+        "type": "boolean",
+        "value": "true"
+      },
+      {
+        "description": "unused ports should be listed in the flattened model",
+        "key": "leavePorts",
+        "type": "boolean",
+        "value": "false"
+      },
+      {
+        "description": "all model definitions and external model definitions should remain in the SBMLDocument",
+        "key": "listModelDefinitions",
+        "type": "boolean",
+        "value": "false"
+      },
+      {
+        "description": "perform validation before and after trying to flatten",
+        "key": "performValidation",
+        "type": "boolean",
+        "value": "true"
+      },
+      {
+        "description": "comma separated list of packages to be stripped before flattening is attempted",
+        "key": "stripPackages",
+        "type": "string",
+        "value": ""
+      },
+      {
+        "description": "specify whether to strip any unflattenable packages ignored by 'abortIfUnflattenable'",
+        "key": "stripUnflattenablePackages",
+        "type": "boolean",
+        "value": "true"
+      }
+    ]
+  },
+  "SBML Distributions Annotations Converter": {
+    "main": {
+      "description": "convert distrib to annotations",
+      "key": "convert distrib to annotations",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "Use the UncertML namespace for the annotation instead of Wikipedia ones",
+        "key": "useUncertMLNamespaces",
+        "type": "boolean",
+        "value": "false"
+      },
+      {
+        "description": "Created functions return means of distributions instead of NaN",
+        "key": "writeMeans",
+        "type": "boolean",
+        "value": "false"
+      }
+    ]
+  },
+  "SBML FBC to COBRA Converter": {
+    "main": {
+      "description": "convert FBC L3V1 to SBML L2V4 with COBRA annotation",
+      "key": "convert fbc to cobra",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "write gene association into reaction notes, even if the reaction has notes already",
+        "key": "overwriteReactionNotes",
+        "type": "boolean",
+        "value": "false"
+      }
+    ]
+  },
+  "SBML FBC v1 to FBC v2 Converter": {
+    "main": {
+      "description": "convert fbc v1 to fbc v2",
+      "key": "convert fbc v1 to fbc v2",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "should the model be a strict one (i.e.: all non-specified bounds will be filled)",
+        "key": "strict",
+        "type": "boolean",
+        "value": "true"
+      }
+    ]
+  },
+  "SBML FBC v2 to FBC v1 Converter": {
+    "main": {
+      "description": "convert fbc v2 to fbc v1",
+      "key": "convert fbc v2 to fbc v1",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": []
+  },
+  "SBML Function Definition Converter": {
+    "main": {
+      "description": "Expand all function definitions in the model",
+      "key": "expandFunctionDefinitions",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "Comma separated list of ids to skip during expansion",
+        "key": "skipIds",
+        "type": "string",
+        "value": ""
+      }
+    ]
+  },
+  "SBML Id Converter": {
+    "main": {
+      "description": "Rename all SIds specified in the 'currentIds' option to the ones specified in 'newIds'",
+      "key": "renameSIds",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "Comma separated list of ids to rename",
+        "key": "currentIds",
+        "type": "string",
+        "value": ""
+      },
+      {
+        "description": "Comma separated list of the new ids",
+        "key": "newIds",
+        "type": "string",
+        "value": ""
+      }
+    ]
+  },
+  "SBML Infer Units Converter": {
+    "main": {
+      "description": "Infer the units of Parameters",
+      "key": "inferUnits",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": []
+  },
+  "SBML Initial Assignment Converter": {
+    "main": {
+      "description": "Expand initial assignments in the model",
+      "key": "expandInitialAssignments",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": []
+  },
+  "SBML Level 1 Version 1 Converter": {
+    "main": {
+      "description": "convert the document to SBML Level 1 Version 1",
+      "key": "convertToL1V1",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "change pow expressions to the (^) hat notation",
+        "key": "changePow",
+        "type": "boolean",
+        "value": "false"
+      },
+      {
+        "description": "if true, occurrances of compartment ids in expressions will be replaced with their initial size",
+        "key": "inlineCompartmentSizes",
+        "type": "boolean",
+        "value": "false"
+      }
+    ],
+    "targetNamespaces": { "level": 1, "version": 1 }
+  },
+  "SBML Level Version Converter": {
+    "main": {
+      "description": "Convert the model to a given Level and Version of SBML",
+      "key": "setLevelAndVersion",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "Whether default units should be added when converting to L3",
+        "key": "addDefaultUnits",
+        "type": "boolean",
+        "value": "true"
+      },
+      {
+        "description": "Whether validity should be strictly preserved",
+        "key": "strict",
+        "type": "boolean",
+        "value": "true"
+      }
+    ],
+    "targetNamespaces": { "level": 3, "version": 2 }
+  },
+  "SBML Local Parameter Converter": {
+    "main": {
+      "description": "Promotes all Local Parameters to Global ones",
+      "key": "promoteLocalParameters",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": []
+  },
+  "SBML Rate Of Converter": {
+    "main": {
+      "description": "Replace rateOf with functionDefinition",
+      "key": "replaceRateOf",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "create FunctionDefinition",
+        "key": "toFunction",
+        "type": "boolean",
+        "value": "true"
+      }
+    ]
+  },
+  "SBML RateRule Converter": {
+    "main": {
+      "description": "Infer reactions from rateRules in the model",
+      "key": "inferReactions",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "Whether the model should be checked for suitability first",
+        "key": "performSanityCheck",
+        "type": "boolean",
+        "value": "true"
+      },
+      {
+        "description": "If a number appears in the math use it as the stoichiometry",
+        "key": "useStoichiometryFromMath",
+        "type": "boolean",
+        "value": "true"
+      }
+    ]
+  },
+  "SBML Reaction Converter": {
+    "main": {
+      "description": "Replace reactions with rateRules",
+      "key": "replaceReactions",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "make any species into parameters",
+        "key": "rateRuleVariablesShouldBeParameters",
+        "type": "boolean",
+        "value": "false"
+      }
+    ]
+  },
+  "SBML Rule Converter": {
+    "main": {
+      "description": "Sort AssignmentRules and InitialAssignments in the model",
+      "key": "sortRules",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": []
+  },
+  "SBML Strip Package Converter": {
+    "main": {
+      "description": "Strip SBML Level 3 package constructs from the model",
+      "key": "stripPackage",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "Name of the SBML Level 3 package to be stripped",
+        "key": "package",
+        "type": "string",
+        "value": ""
+      },
+      {
+        "description": "If set, all unsupported packages will be removed.",
+        "key": "stripAllUnrecognized",
+        "type": "boolean",
+        "value": "false"
+      }
+    ]
+  },
+  "SBML Units Converter": {
+    "main": {
+      "description": "Convert units in the model to SI units",
+      "key": "units",
+      "type": "boolean",
+      "value": "true"
+    },
+    "options": [
+      {
+        "description": "Whether unused UnitDefinition objects should be removed",
+        "key": "removeUnusedUnits",
+        "type": "boolean",
+        "value": "true"
+      }
+    ]
+  }
 }
+
 ```
 
 ## Acknowledgements
